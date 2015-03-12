@@ -1,0 +1,4 @@
+node_modules/
+permissions.json
+.env
+*.log
