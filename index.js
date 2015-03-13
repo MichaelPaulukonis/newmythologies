@@ -3,10 +3,11 @@
 var _ = require('underscore');
 // TODO: use the npm-pos lib
 var pos = require('pos');
-var nlp = require('nlp_compromise');
+// var nlp = require('nlp_compromise');
 // var config = require('./config.js');
 // var Twit = require('twit');
 // var T = new Twit(config);
+var fs = require('fs');
 
 // ### Utility Functions
 
@@ -354,48 +355,59 @@ var tweeter = function(headlines) {
 
     logger('tweeter!');
     logger(arguments);
-    // logger(headlines);
 
-    // not random at the mo
-    // because passing in original array WTF?!?!?
-    var h1 = headlines[0];
-    var h2 = headlines[1];
+    fs.readFile('motifs.txt', 'utf8', function(err, data) {
 
-    logger('\nh1: ' + h1.name + '\nh2:' + h2.name);
-
-    var strategy = getStrategy(h1.name, h2.name);;
-
-    try {
-	var newSentence = strategy(h1.name, h2.name);
-	// capitalize first word
-	// I tried inflection's "titleize" but that zapped acronyms like "SSN" and "NSA"
-	newSentence = newSentence.slice(0,1).toUpperCase() + newSentence.slice(1);
-
-        if (newSentence.length < 120) newSentence += ' ' + headlines[0].url;
-        if (newSentence.length < 120) newSentence += ' ' + headlines[1].url;
-	logger(newSentence);
-
-	if(!newSentence) {
-	    logger('NOTHING NOTHING NOTHING');
-	}
-    } catch (err) {
-	console.log('Error: ' + err.message);
-    }
-
-    if (newSentence.length === 0 || newSentence.length > 140) {
-        tweet();
-    } else {
-        if (config.tweet_on) {
-	    T.post('statuses/update', { status: newSentence }, function(err, reply) {
-	        if (err) {
-		    console.log('error:', err);
-	        }
-	        else {
-                    // nothing on success
-	        }
-	    });
+        if (err) {
+            return logger(err);
         }
-    }
+
+        var lines = data.trim().split('\n');
+
+        var catmyth1 = pickRemove(lines).trim().replace('\r', '');
+        var catmyth2 = pickRemove(lines).trim().replace('\r', '');
+
+        var myth1 = catmyth1.substr(catmyth1.indexOf(' ') + 1);
+        var myth2 = catmyth2.substr(catmyth2.indexOf(' ') + 1);
+
+        // var space = line.indexOf(' ');
+        // var nbr = line.substring(0, space);
+        // var myth = line.substr(space + 1);
+
+        logger('\nh1: ' + myth1 + '\nh2:' + myth2);
+
+        var strategy = getStrategy(myth1, myth2);
+
+        try {
+	    var newSentence = strategy(myth1, myth2);
+	    // capitalize first word
+	    // I tried inflection's "titleize" but that zapped acronyms like "SSN" and "NSA"
+	    newSentence = newSentence.slice(0,1).toUpperCase() + newSentence.slice(1);
+
+	    logger(newSentence);
+
+	    if(!newSentence) {
+	        logger('NOTHING NOTHING NOTHING');
+	    }
+        } catch (err) {
+	    console.log('Error: ' + err.message);
+        }
+
+        if (newSentence.length === 0 || newSentence.length > 140) {
+            tweet();
+        } else {
+            if (config.tweet_on) {
+	        T.post('statuses/update', { status: newSentence }, function(err, reply) {
+	            if (err) {
+		        console.log('error:', err);
+	            }
+	            else {
+                        // nothing on success
+	            }
+	        });
+            }
+        }
+    });
 
 };
 
@@ -422,10 +434,6 @@ setInterval(function () {
 	console.log(e);
     }
 }, 1000 * config.minutes * config.seconds);
-
-
-// hard-coded headlines, or OMG ITS ALIVE
-var getHeadlines = (config.static_lib ? require('./static.js').getHeadlines : headlinesFromPage);
 
 // Tweets once on initialization.
 tweet();
