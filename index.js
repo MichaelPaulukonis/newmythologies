@@ -12,7 +12,9 @@ var fs = require('fs');
 
 // temporary
 var config = {
-  log: true
+  log: true,
+  minutes: 1,
+  seconds: 5
 };
 
 var logger = function(msg) {
@@ -395,7 +397,7 @@ var tweeter = function(texts) {
     var myth1 = catmyth1.substr(catmyth1.indexOf(' ') + 1);
     var myth2 = catmyth2.substr(catmyth2.indexOf(' ') + 1);
 
-    logger('\nh1: ' + myth1 + '\nh2:' + myth2);
+    logger('\nm1: ' + myth1 + '\nm2: ' + myth2);
 
     var strategy = getStrategy(myth1, myth2);
 
@@ -433,23 +435,11 @@ var tweeter = function(texts) {
 };
 
 
-function tweet() {
-
-  // logger('in tweet');
-
-  // get two myth-thingies from file
-  // combine them
-  
-  logger('DONE DONE DONE!');
-  tweeter(arguments);
-
-};
-
 // Tweets ever n minutes
 // set config.seconds to 60 for a complete minute
 setInterval(function () {
   try {
-    tweet();
+    tweeter();
   }
   catch (e) {
     console.log(e);
@@ -457,4 +447,4 @@ setInterval(function () {
 }, 1000 * config.minutes * config.seconds);
 
 // Tweets once on initialization.
-tweet();
+tweeter();
