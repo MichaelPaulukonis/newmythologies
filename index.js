@@ -12,9 +12,9 @@ var fs = require('fs');
 
 // temporary
 var config = {
-  log: true,
+  log: false,
   minutes: 1,
-  seconds: 5
+  seconds: 2
 };
 
 var logger = function(msg) {
@@ -179,26 +179,26 @@ var firstPOS = function(parts, pos) {
 };
 
 // split on inner punctuation
-var splitterPunct = function(h1, h2) {
+var splitterPunct = function(s1, s2) {
 
   // logger('splitterPunct');
 
-  var h1Loc = h1.indexOf(':');
-  var h2Loc = h2.indexOf(':');
+  var s1Loc = s1.indexOf(':');
+  var s2Loc = s2.indexOf(':');
 
-  var sent = h1.slice(0, h1Loc) + h2.slice(h2Loc);
+  var sent = s1.slice(0, s1Loc) + s2.slice(s2Loc);
   return sent;
 
 };
 
-var splitterPos = function(h1,h2) {
+var splitterPos = function(s1,s2) {
 
   // logger('splitterPos');
 
   var pos = 'CC';
 
-  var words1 = getPOSarrayFull(h1);
-  var words2 = getPOSarrayFull(h2);
+  var words1 = getPOSarrayFull(s1);
+  var words2 = getPOSarrayFull(s2);
 
   // sentence1 up to CC
   // then sentence2 from CC
@@ -207,29 +207,64 @@ var splitterPos = function(h1,h2) {
   var firstCC = firstPOS(words1, pos);
   var secondCC = firstPOS(words2, pos);
 
-  var firstLoc = h1.indexOf(firstCC);
-  var secondLoc = h2.indexOf(secondCC); // - secondCC.length;
+  var firstLoc = s1.indexOf(firstCC);
+  var secondLoc = s2.indexOf(secondCC); // - secondCC.length;
 
-  var sent = h1.slice(0, firstLoc) + h2.slice(secondLoc);
+  var sent = s1.slice(0, firstLoc) + s2.slice(secondLoc);
 
   return sent;
 
 
 };
 
+
+var isAlpha = function(text) {
+  return (typeof text != 'undefined' && /^[\w]+/.test(text));
+};
+
+// almost random -- neither first nor last token, however
+var getRandomToken = function(tokens) {
+  return tokens[Math.floor(Math.random()*(tokens.length-1)) + 1];
+};
+
 // TODO: wait, how does this work?
-var woodSplitter = function(h1, h2) {
+// turn sentences into tokens
+// split each sentence at some random token
+// take first part of first sentence
+// and second part of second sentence
+// TODO: test this baby - where does it split????
+var woodSplitter = function(s1, s2) {
 
-  var t1 = nlp.tokenize(h1)[0].tokens;
-  var t2 = nlp.tokenize(h2)[0].tokens;
+  var t1 = new pos.Lexer().lex(s1);
+  var t2 = new pos.Lexer().lex(s2);
 
-  var pos1 = t1[Math.floor(Math.random()*t1.length)].text;
-  var pos2 = t2[Math.floor(Math.random()*t2.length)].text;
+  // TODO: must have at least 1 from s1
+  // and at least 1 from s2
+  // var pos1 = t1[Math.floor(Math.random()*(t1.length-1)) + 1];
+  // var pos2 = t2[Math.floor(Math.random()*(t2.length-1)) + 1];
 
-  var w1 = h1.search(new RegExp('\\b' + pos1 + '\\b'));
-  var w2 = h2.search(new RegExp('\\b' + pos2 + '\\b'));
+  var pos1, pos2;
+  while (!isAlpha(pos1)) pos1 = getRandomToken(t1);
+  while (!isAlpha(pos2)) pos2 = getRandomToken(t2);
 
-  var sent = h1.slice(0, w1).trim() + ' '  + h2.slice(w2).trim();
+  // console.log('pos1: ' + pos1 + ' pos2: ' + pos2);
+  // TODO: tokens may not nesc be words
+  // for example "'" or "," are all tokenized
+  // so. HOW TO HANDLE????
+
+  // m1: Mother's ghost tries to tear daughter to pieces.
+  // m2: Why good-looking but soft, useless women attract men.
+  // strategy: woodsplitter
+  // pos1: tries pos2: ,
+  // w1: 15 w2: -1
+  // Mother's ghost .
+
+  var w1 = s1.search(new RegExp('\\b' + pos1 + '\\b'));
+  var w2 = s2.search(new RegExp('\\b' + pos2 + '\\b'));
+
+  // console.log('w1: ' + w1 + ' w2: ' + w2);
+
+  var sent = s1.slice(0, w1).trim() + ' '  + s2.slice(w2).trim();
 
   return sent;
 
@@ -237,14 +272,14 @@ var woodSplitter = function(h1, h2) {
 
 var replacer = function(pos, vector) {
 
-  var posReplacement = function(h1, h2) {
+  var posReplacement = function(s1, s2) {
 
     // logger('posReplacement');
 
-    var sent = h1;
+    var sent = s1;
 
-    var words1 = getPOSarray(h1, pos);
-    var words2 = getPOSarray(h2, pos);
+    var words1 = getPOSarray(s1, pos);
+    var words2 = getPOSarray(s2, pos);
 
     var longest = ( words1.length > words2.length ? words1.length : words2.length);
 
@@ -260,14 +295,14 @@ var replacer = function(pos, vector) {
 
   // loop through the second (smaller) array in reverse.
   // uh. wheeee?
-  var replacementPos = function(h1, h2) {
+  var replacementPos = function(s1, s2) {
 
     // logger('replacementPos');
 
-    var sent = h1;
+    var sent = s1;
 
-    var words1 = getPOSarray(h1, pos);
-    var words2 = getPOSarray(h2, pos);
+    var words1 = getPOSarray(s1, pos);
+    var words2 = getPOSarray(s2, pos);
 
     var longest = ( words1.length > words2.length ? words1.length : words2.length);
 
@@ -291,26 +326,28 @@ var replacer = function(pos, vector) {
 };
 
 
-var hasPOS = function(h1, h2, pos) {
+var hasPOS = function(s1, s2, pos) {
 
-  var h1f = false;
-  var h2f = false;
+  var s1f = false;
+  var s2f = false;
 
-  for (var i = 0; i < h1.length; i++) {
-    if (h1[i].pos == pos) {
-      h1f = true;
+  for (var i = 0; i < s1.length; i++) {
+    if (pos.indexOf(s1[i].pos) > -1) {
+    // if (s1[i].pos == pos) {
+      s1f = true;
       break;
     }
   }
 
-  for (i = 0; i < h2.length; i++) {
-    if (h2[i].pos == pos) {
-      h2f = true;
+  for (i = 0; i < s2.length; i++) {
+    if (pos.indexOf(s2[i].pos) > -1) {
+    // if (s2[i].pos == pos) {
+      s2f = true;
       break;
     }
   }
 
-  var found = h1f && h2f;
+  var found = s1f && s2f;
 
   // if (pos == 'NN') console.log('found: ' + found);
 
@@ -319,9 +356,9 @@ var hasPOS = function(h1, h2, pos) {
 };
 
 
-var hasColons = function(h1, h2) {
+var hasColons = function(s1, s2) {
 
-  return (h1.indexOf(':') > -1 && h2.indexOf(':') > -1);
+  return (s1.indexOf(':') > -1 && s2.indexOf(':') > -1);
 
 };
 
@@ -336,28 +373,34 @@ var coinflip = function(chance) {
 
 // input: two texts as strings
 // output: a strategy method
-var getStrategy = function(h1, h2) {
+var getStrategy = function(s1, s2) {
 
   // logger('getStrategy');
 
-  var hp1 = getPOSarrayFull(h1);
-  var hp2 = getPOSarrayFull(h2);
+  var hp1 = getPOSarrayFull(s1);
+  var hp2 = getPOSarrayFull(s2);
   var ccs = hasPOS(hp1,hp2, 'CC');
-  var colons = hasColons(h1, h2);
+  var colons = hasColons(s1, s2);
+  // TODO: trap for all possible variants
   var nns = hasPOS(hp1, hp2, 'NN');
 
   var strategy;
 
-  if (colons && coinflip(0.75)) {
+  if (colons && coinflip(0.5)) {
+    logger('strategy: splitterPunct');
     strategy = splitterPunct;
-  }
-  else if(ccs && coinflip(0.75)) {
+  } else if(ccs && coinflip(0.75)) {
+    logger('strategy: splitterPos');
     strategy = splitterPos;
   } else if (nns && coinflip(0.8)) {
+    logger('strategy: replacer FOUND');
     strategy = (Math.random() > 0.5) ? replacer('NN', direction.forward) : replacer('NN', direction.reverse);
   } else {
-    strategy = (Math.random() > 0.5) ? replacer('NN', direction.forward) : replacer('NN', direction.reverse);
-    // strategy = woodSplitter;
+    logger('strategy: woodsplitter');
+    // TODO: we should NOT be running the replacer
+    // BECUASE WE DON'T HAVE THE MATCHING parts of speech to do so!
+    // strategy = (Math.random() > 0.5) ? replacer('NN', direction.forward) : replacer('NN', direction.reverse);
+    strategy = woodSplitter;
   }
 
   return strategy;
@@ -367,12 +410,12 @@ var picker = function(texts) {
 
   // logger('picker!');
 
-  var h1 = pickRemove(texts);
-  var h2 = pickRemove(texts);
+  var s1 = pickRemove(texts);
+  var s2 = pickRemove(texts);
 
-  logger('\nh1: ' + h1.name + '\nh2:' + h2.name);
+  logger('\ns1: ' + s1.name + '\ns2:' + s2.name);
 
-  var two = [h1, h2];
+  var two = [s1, s2];
 
   return two;
 
@@ -397,6 +440,11 @@ var tweeter = function(texts) {
     var myth1 = catmyth1.substr(catmyth1.indexOf(' ') + 1);
     var myth2 = catmyth2.substr(catmyth2.indexOf(' ') + 1);
 
+    // myth1 = "Mother's ghost tries to tear daughter to pieces.";
+    // myth2 = "Why good-looking but soft, useless women attract men.";
+    // strategy: replacer
+    // Mother's undefined tries to tear undefined to pieces.
+
     logger('\nm1: ' + myth1 + '\nm2: ' + myth2);
 
     var strategy = getStrategy(myth1, myth2);
@@ -407,7 +455,7 @@ var tweeter = function(texts) {
       // I tried inflection's "titleize" but that zapped acronyms like "SSN" and "NSA"
       newSentence = newSentence.slice(0,1).toUpperCase() + newSentence.slice(1);
 
-      logger(newSentence);
+      console.log(newSentence);
 
       if(!newSentence) {
 	logger('NOTHING NOTHING NOTHING');
