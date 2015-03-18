@@ -2,20 +2,20 @@
 
 var _ = require('underscore');
 var pos = require('pos');
-// var config = require('./config.js');
-// var Twit = require('twit');
-// var T = new Twit(config);
+var config = require('./config.js');
+var Twit = require('twit');
+var T = new Twit(config);
 var motifCore = require('./motif.array.txt');
 var motifs = JSON.parse(JSON.stringify(motifCore));
 
 // ### Utility Functions
 
 // temporary
-var config = {
-  log: false,
-  minutes: 1,
-  seconds: 2
-};
+// var config = {
+//   log: false,
+//   minutes: 1,
+//   seconds: 2
+// };
 
 var logger = function(msg) {
   // console.log('logging?: ' + config.log);
@@ -409,31 +409,12 @@ var picker = function(texts) {
 
 };
 
-// we do NOT have the data here... :-(
 var tweeter = function(texts) {
 
   logger('tweeter!');
 
-  // fs.readFile('motifs.txt', 'utf8', function(err, data) {
+  // logger(motifs);
 
-  //   if (err) {
-  //     return console.log(err);
-  //   }
-
-  //   var lines = data.trim().split('\n');
-
-  //   var catmyth1 = pickRemove(lines).trim().replace('\r', '');
-  //   var catmyth2 = pickRemove(lines).trim().replace('\r', '');
-
-  //   var myth1 = catmyth1.substr(catmyth1.indexOf(' ') + 1);
-  //   var myth2 = catmyth2.substr(catmyth2.indexOf(' ') + 1);
-
-  // myth1 = "Mother's ghost tries to tear daughter to pieces.";
-  // myth2 = "Why good-looking but soft, useless women attract men.";
-  // strategy: replacer
-  // Mother's undefined tries to tear undefined to pieces.
-
-  logger(motifs);
   if (motifs.length < 2) {
     motifs = JSON.parse(JSON.stringify(motifCore));
   }
@@ -461,7 +442,7 @@ var tweeter = function(texts) {
   }
 
   if (newSentence.length === 0 || newSentence.length > 140) {
-    tweet();
+    tweeter();
   } else {
     if (config.tweet_on) {
       T.post('statuses/update', { status: newSentence }, function(err, reply) {
@@ -474,7 +455,6 @@ var tweeter = function(texts) {
       });
     }
   }
-  // });
 
 };
 
