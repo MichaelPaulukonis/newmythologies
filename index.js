@@ -1,12 +1,12 @@
 // ### Libraries and globals
 
 var _ = require('underscore');
-// TODO: use the npm-pos lib
 var pos = require('pos');
 // var config = require('./config.js');
 // var Twit = require('twit');
 // var T = new Twit(config);
-var fs = require('fs');
+var motifCore = require('./motif.array.txt');
+var motifs = JSON.parse(JSON.stringify(motifCore));
 
 // ### Utility Functions
 
@@ -90,18 +90,6 @@ var stripWord = function(word) {
 
 var getNounArray = function(text) {
 
-  //  var pos = require('pos');
-  //  var s = 'Embattled Oregon Governor Says He Will Resign'
-  //  var words = new pos.Lexer().lex(s);
-  //  var taggedWords = new pos.Tagger().tag(words);
-  //  taggedWords
-  // [ [ 'Embattled', 'JJ' ],
-  //   [ 'Oregon', 'NNP' ],
-  //   [ 'Governor', 'NNP' ],
-  //   [ 'Says', 'VBZ' ],
-  //   [ 'He', 'PRP' ],
-  //   [ 'Will', 'MD' ],
-  //   [ 'Resign', 'VB' ] ]
   var nn = [];
   var currn = [];
   var active = false;
@@ -333,7 +321,7 @@ var hasPOS = function(s1, s2, pos) {
 
   for (var i = 0; i < s1.length; i++) {
     if (pos.indexOf(s1[i].pos) > -1) {
-    // if (s1[i].pos == pos) {
+      // if (s1[i].pos == pos) {
       s1f = true;
       break;
     }
@@ -341,7 +329,7 @@ var hasPOS = function(s1, s2, pos) {
 
   for (i = 0; i < s2.length; i++) {
     if (pos.indexOf(s2[i].pos) > -1) {
-    // if (s2[i].pos == pos) {
+      // if (s2[i].pos == pos) {
       s2f = true;
       break;
     }
@@ -426,59 +414,67 @@ var tweeter = function(texts) {
 
   logger('tweeter!');
 
-  fs.readFile('motifs.txt', 'utf8', function(err, data) {
+  // fs.readFile('motifs.txt', 'utf8', function(err, data) {
 
-    if (err) {
-      return console.log(err);
+  //   if (err) {
+  //     return console.log(err);
+  //   }
+
+  //   var lines = data.trim().split('\n');
+
+  //   var catmyth1 = pickRemove(lines).trim().replace('\r', '');
+  //   var catmyth2 = pickRemove(lines).trim().replace('\r', '');
+
+  //   var myth1 = catmyth1.substr(catmyth1.indexOf(' ') + 1);
+  //   var myth2 = catmyth2.substr(catmyth2.indexOf(' ') + 1);
+
+  // myth1 = "Mother's ghost tries to tear daughter to pieces.";
+  // myth2 = "Why good-looking but soft, useless women attract men.";
+  // strategy: replacer
+  // Mother's undefined tries to tear undefined to pieces.
+
+  logger(motifs);
+  if (motifs.length < 2) {
+    motifs = JSON.parse(JSON.stringify(motifCore));
+  }
+
+  var myth1 = pickRemove(motifs)[1];
+  var myth2 = pickRemove(motifs)[1];
+
+  logger('\nm1: ' + myth1 + '\nm2: ' + myth2);
+
+  var strategy = getStrategy(myth1, myth2);
+
+  try {
+    var newSentence = strategy(myth1, myth2);
+    // capitalize first word
+    // I tried inflection's "titleize" but that zapped acronyms like "SSN" and "NSA"
+    newSentence = newSentence.slice(0,1).toUpperCase() + newSentence.slice(1);
+
+    console.log(newSentence);
+
+    if(!newSentence) {
+      logger('NOTHING NOTHING NOTHING');
     }
+  } catch (err) {
+    console.log('Error: ' + err.message);
+  }
 
-    var lines = data.trim().split('\n');
-
-    var catmyth1 = pickRemove(lines).trim().replace('\r', '');
-    var catmyth2 = pickRemove(lines).trim().replace('\r', '');
-
-    var myth1 = catmyth1.substr(catmyth1.indexOf(' ') + 1);
-    var myth2 = catmyth2.substr(catmyth2.indexOf(' ') + 1);
-
-    // myth1 = "Mother's ghost tries to tear daughter to pieces.";
-    // myth2 = "Why good-looking but soft, useless women attract men.";
-    // strategy: replacer
-    // Mother's undefined tries to tear undefined to pieces.
-
-    logger('\nm1: ' + myth1 + '\nm2: ' + myth2);
-
-    var strategy = getStrategy(myth1, myth2);
-
-    try {
-      var newSentence = strategy(myth1, myth2);
-      // capitalize first word
-      // I tried inflection's "titleize" but that zapped acronyms like "SSN" and "NSA"
-      newSentence = newSentence.slice(0,1).toUpperCase() + newSentence.slice(1);
-
-      console.log(newSentence);
-
-      if(!newSentence) {
-	logger('NOTHING NOTHING NOTHING');
-      }
-    } catch (err) {
-      console.log('Error: ' + err.message);
+  if (newSentence.length === 0 || newSentence.length > 140) {
+    tweet();
+  } else {
+    if (config.tweet_on) {
+      T.post('statuses/update', { status: newSentence }, function(err, reply) {
+	if (err) {
+	  console.log('error:', err);
+	}
+	else {
+          // nothing on success
+	}
+      });
     }
-
-    if (newSentence.length === 0 || newSentence.length > 140) {
-      tweet();
-    } else {
-      if (config.tweet_on) {
-	T.post('statuses/update', { status: newSentence }, function(err, reply) {
-	  if (err) {
-	    console.log('error:', err);
-	  }
-	  else {
-            // nothing on success
-	  }
-	});
-      }
-    }
-  });
+  }
+  // });
 
 };
 
