@@ -1,6 +1,4 @@
 // ### Libraries and globals
-
-var _ = require('underscore');
 var pos = require('pos');
 var config = require('./config.js');
 var Twit = require('twit');
@@ -10,19 +8,13 @@ var motifs = JSON.parse(JSON.stringify(motifCore));
 
 // ### Utility Functions
 
-// temporary
-// var config = {
-//   log: false,
-//   minutes: 1,
-//   seconds: 2
-// };
-
 var logger = function(msg) {
   // console.log('logging?: ' + config.log);
   if (config.log) console.log(msg);
 };
 
 // adding to array.prototype caused issues with nlp_compromise
+// not used here, but hey, good practice anyway.
 var pick = function(arr) {
   return arr[Math.floor(Math.random()*arr.length)];
 };
@@ -37,12 +29,8 @@ var getRandom = function(min,max) {
   return Math.floor(Math.random() * (max - min) + min);
 };
 
-// crude fix for the encoding problems I've encountered
-// not sure what the best way to do this is. :-(
-var clean = function(text) {
-  text = text.replace(' ', ' ').replace('’', "\'");
-  text = text.replace('“', '"').replace('”', '"');
-  return text;
+var isFirstLetterUpperCase = function(str) {
+  return (str.charAt(0).toUpperCase() == str.charAt(0));
 };
 
 
@@ -51,23 +39,21 @@ var direction = {
   reverse: 1
 };
 
+var capitalize = function(phrase) {
 
-// text as string
-// var dumpInfo = function(text) {
+  var cphrase = [];
+  var splits = phrase.split(' ');
+  for (var i = 0; i < splits.length; i++) {
+    cphrase.push(capitalizeWord(splits[i]));
+  }
 
-//   logger('\n\ntext: ' + text);
+  return cphrase.join(' ');
 
-//   var p = nlp.pos(text);
-//   var tokens = p[0].tokens;
+};
 
-//   for (var i = 0; i < tokens.length; i++) {
-//     var t = tokens[i];
-//     logger('text: ' + t.text + ' (' + t.pos.tag + ')');
-//   }
-
-//   var nn = getNounArray(text);
-//   logger(nn.join(' -  '));
-// };
+var capitalizeWord = function(word) {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+};
 
 var stripWord = function(word) {
 
@@ -80,7 +66,7 @@ var stripWord = function(word) {
 
   for (var i = 0 ; i < removals.length; i++) {
     var r = removals[i];
-    word = word.replace(new RegExp(r, 'i'), '');
+    word = word.replace(new RegExp(r, 'ig'), '');
   }
 
   return word;
@@ -215,7 +201,6 @@ var getRandomToken = function(tokens) {
   return tokens[Math.floor(Math.random()*(tokens.length-1)) + 1];
 };
 
-// TODO: wait, how does this work?
 // turn sentences into tokens
 // split each sentence at some random token
 // take first part of first sentence
@@ -226,35 +211,53 @@ var woodSplitter = function(s1, s2) {
   var t1 = new pos.Lexer().lex(s1);
   var t2 = new pos.Lexer().lex(s2);
 
-  // TODO: must have at least 1 from s1
-  // and at least 1 from s2
-  // var pos1 = t1[Math.floor(Math.random()*(t1.length-1)) + 1];
-  // var pos2 = t2[Math.floor(Math.random()*(t2.length-1)) + 1];
-
   var pos1, pos2;
   while (!isAlpha(pos1)) pos1 = getRandomToken(t1);
   while (!isAlpha(pos2)) pos2 = getRandomToken(t2);
 
-  // console.log('pos1: ' + pos1 + ' pos2: ' + pos2);
-  // TODO: tokens may not nesc be words
-  // for example "'" or "," are all tokenized
-  // so. HOW TO HANDLE????
-
-  // m1: Mother's ghost tries to tear daughter to pieces.
-  // m2: Why good-looking but soft, useless women attract men.
-  // strategy: woodsplitter
-  // pos1: tries pos2: ,
-  // w1: 15 w2: -1
-  // Mother's ghost .
-
   var w1 = s1.search(new RegExp('\\b' + pos1 + '\\b'));
   var w2 = s2.search(new RegExp('\\b' + pos2 + '\\b'));
-
-  // console.log('w1: ' + w1 + ' w2: ' + w2);
 
   var sent = s1.slice(0, w1).trim() + ' '  + s2.slice(w2).trim();
 
   return sent;
+
+};
+
+// replace all occurences of a given noun in s2 with a noun from s1
+// if s2 is a noun-phrase, swap s1 and s2
+var singleNouner = function(s1, s2) {
+
+  var nouns1 = getNounArray(s1);
+  var nouns2 = getNounArray(s2);
+
+  // sometimes nouns2 ends up being ONE THING
+  // due to the presence of noun-phrases in the source
+  // eg "Giant Ravens"
+  // if this is the case, swap 1 and 2
+  if (nouns2.length == 1) {
+    var temp = nouns2;
+    nouns2 = nouns1;
+    nouns1 = temp;
+    temp = s2;
+    s2 = s1;
+    s1 = temp;
+  }
+
+  var nounReplacer = pickRemove(nouns1);
+  var nounTarget = pickRemove(nouns2);
+
+  if (isFirstLetterUpperCase(nounTarget)) {
+    nounReplacer = capitalize(nounReplacer);
+  } else {
+    nounReplacer = nounReplacer.toLowerCase();
+  }
+
+  var targ = new RegExp('\\b' + nounTarget + '\\b', 'ig');
+
+  var out = s2.replace(targ, nounReplacer);
+
+  return out;
 
 };
 
@@ -381,8 +384,14 @@ var getStrategy = function(s1, s2) {
     logger('strategy: splitterPos');
     strategy = splitterPos;
   } else if (nns && coinflip(0.8)) {
-    logger('strategy: replacer FOUND');
-    strategy = (Math.random() > 0.5) ? replacer('NN', direction.forward) : replacer('NN', direction.reverse);
+    // prefer single-nouner over multiple-replacer
+    if (coinflip(0.3)) {
+      logger('strategy: replacer FOUND NNS');
+      strategy = (Math.random() > 0.5) ? replacer('NN', direction.forward) : replacer('NN', direction.reverse);
+    } else {
+      logger('strategy: singleNouner');
+      strategy = singleNouner;
+    }
   } else {
     logger('strategy: woodsplitter');
     // TODO: we should NOT be running the replacer
@@ -410,10 +419,6 @@ var picker = function(texts) {
 };
 
 var tweeter = function(texts) {
-
-  logger('tweeter!');
-
-  // logger(motifs);
 
   if (motifs.length < 2) {
     motifs = JSON.parse(JSON.stringify(motifCore));
