@@ -29,6 +29,13 @@ var getRandom = function(min,max) {
   return Math.floor(Math.random() * (max - min) + min);
 };
 
+// return true or false
+// 50-50 chance (unless override)
+var coinflip = function(chance) {
+  if (!chance) { chance = 0.5; }
+  return (Math.random() < chance);
+};
+
 var isFirstLetterUpperCase = function(str) {
   return (str.charAt(0).toUpperCase() == str.charAt(0));
 };
@@ -196,9 +203,17 @@ var isAlpha = function(text) {
   return (typeof text != 'undefined' && /^[\w]+/.test(text));
 };
 
-// almost random -- neither first nor last token, however
-var getRandomToken = function(tokens) {
-  return tokens[Math.floor(Math.random()*(tokens.length-1)) + 1];
+// almost random -- neither first nor last token
+// if the length permits
+// TODO: it does return the last token
+// so, have to fix this. AAAARGH
+var getRandomMiddleToken = function(tokens) {
+  // return token if only one
+  if (tokens.length == 1) return tokens[0];
+  // if only two, return first or last
+  if (tokens.length == 2) return (coinflip() ? tokens[0] : tokens[1]);
+  // algorithm should work for (length == 3)+
+  return tokens[Math.floor(Math.random()*(tokens.length-2)) + 1];
 };
 
 // turn sentences into tokens
@@ -211,9 +226,23 @@ var woodSplitter = function(s1, s2) {
   var t1 = new pos.Lexer().lex(s1);
   var t2 = new pos.Lexer().lex(s2);
 
+  if (t1.length == 0 || t2.length == 0) {
+    // this wil throw us into an infinite loop
+    // return the one that isn't of length 0
+    // which, uh, shouldn't ever happen.
+    // and TWO OF THEM ? WTF IDK EVEN
+  } else {
+
+  // DONE: we're gonna get AN INFINITE LOOP of some-kind WHEN THERE IS ONLY ONE TOKEN
+  // TODO: unit-tests would be nice
+  // 2015-03-20T17:34:13.823352+00:00 app[worker.1]: m1: The musician in the wolf-trap: meets wolf already trapped, and saves himself by playing music.
+  // 2015-03-20T17:34:13.823346+00:00 app[worker.1]:
+  // 2015-03-20T17:34:13.873865+00:00 app[worker.1]: strategy: woodsplitter
+  // 2015-03-20T17:34:13.823354+00:00 app[worker.1]: m2: Snake-god.
+
   var pos1, pos2;
-  while (!isAlpha(pos1)) pos1 = getRandomToken(t1);
-  while (!isAlpha(pos2)) pos2 = getRandomToken(t2);
+  while (!isAlpha(pos1)) pos1 = getRandomMiddleToken(t1);
+  while (!isAlpha(pos2)) pos2 = getRandomMiddleToken(t2);
 
   var w1 = s1.search(new RegExp('\\b' + pos1 + '\\b'));
   var w2 = s2.search(new RegExp('\\b' + pos2 + '\\b'));
@@ -221,7 +250,7 @@ var woodSplitter = function(s1, s2) {
   var sent = s1.slice(0, w1).trim() + ' '  + s2.slice(w2).trim();
 
   return sent;
-
+  }
 };
 
 // replace all occurences of a given noun in s2 with a noun from s1
@@ -394,29 +423,12 @@ var getStrategy = function(s1, s2) {
     }
   } else {
     logger('strategy: woodsplitter');
-    // TODO: we should NOT be running the replacer
-    // BECUASE WE DON'T HAVE THE MATCHING parts of speech to do so!
-    // strategy = (Math.random() > 0.5) ? replacer('NN', direction.forward) : replacer('NN', direction.reverse);
     strategy = woodSplitter;
   }
 
   return strategy;
 };
 
-var picker = function(texts) {
-
-  // logger('picker!');
-
-  var s1 = pickRemove(texts);
-  var s2 = pickRemove(texts);
-
-  logger('\ns1: ' + s1.name + '\ns2:' + s2.name);
-
-  var two = [s1, s2];
-
-  return two;
-
-};
 
 var tweeter = function(texts) {
 
