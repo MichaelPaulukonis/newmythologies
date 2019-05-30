@@ -2,41 +2,40 @@
 var pos = require('pos');
 var config = require('./config.js');
 var Twit = require('twit');
-var T = new Twit(config);
 var motifCore = require('./motif.array.txt');
 var motifs = JSON.parse(JSON.stringify(motifCore));
 
 // ### Utility Functions
 
-var logger = function(msg) {
+var logger = function (msg) {
   // console.log('logging?: ' + config.log);
   if (config.log) console.log(msg);
 };
 
 // adding to array.prototype caused issues with nlp_compromise
 // not used here, but hey, good practice anyway.
-var pick = function(arr) {
-  return arr[Math.floor(Math.random()*arr.length)];
+var pick = function (arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 };
 
-var pickRemove = function(arr) {
-  var index = Math.floor(Math.random()*arr.length);
-  return arr.splice(index,1)[0];
+var pickRemove = function (arr) {
+  var index = Math.floor(Math.random() * arr.length);
+  return arr.splice(index, 1)[0];
 };
 
 
-var getRandom = function(min,max) {
+var getRandom = function (min, max) {
   return Math.floor(Math.random() * (max - min) + min);
 };
 
 // return true or false
 // 50-50 chance (unless override)
-var coinflip = function(chance) {
+var coinflip = function (chance) {
   if (!chance) { chance = 0.5; }
   return (Math.random() < chance);
 };
 
-var isFirstLetterUpperCase = function(str) {
+var isFirstLetterUpperCase = function (str) {
   return (str.charAt(0).toUpperCase() == str.charAt(0));
 };
 
@@ -46,7 +45,7 @@ var direction = {
   reverse: 1
 };
 
-var capitalize = function(phrase) {
+var capitalize = function (phrase) {
 
   var cphrase = [];
   var splits = phrase.split(' ');
@@ -58,20 +57,20 @@ var capitalize = function(phrase) {
 
 };
 
-var capitalizeWord = function(word) {
+var capitalizeWord = function (word) {
   return word.charAt(0).toUpperCase() + word.slice(1);
 };
 
-var stripWord = function(word) {
+var stripWord = function (word) {
 
   // let punctuation and possessives remain
   // TODO: unit-tests for various errors we encounter
   // Venice's := Venice
   // VENICE'S := VENICE
   // etc.
-  var removals = ['"', ':', '-', ',', '\'s$', '\\(', '\\)', '\\[', '\\]' ];
+  var removals = ['"', ':', '-', ',', '\'s$', '\\(', '\\)', '\\[', '\\]'];
 
-  for (var i = 0 ; i < removals.length; i++) {
+  for (var i = 0; i < removals.length; i++) {
     var r = removals[i];
     word = word.replace(new RegExp(r, 'ig'), '');
   }
@@ -81,7 +80,7 @@ var stripWord = function(word) {
 
 
 
-var getNounArray = function(text) {
+var getNounArray = function (text) {
 
   var nn = [];
   var currn = [];
@@ -108,7 +107,7 @@ var getNounArray = function(text) {
 };
 
 
-var getPOSarray = function(text, targetPos) {
+var getPOSarray = function (text, targetPos) {
 
   var parts = [];
   var words = new pos.Lexer().lex(text);
@@ -125,7 +124,7 @@ var getPOSarray = function(text, targetPos) {
 
 };
 
-var getPOSarrayFull = function(text) {
+var getPOSarrayFull = function (text) {
 
   var parts = [];
 
@@ -145,11 +144,11 @@ var getPOSarrayFull = function(text) {
 
 };
 
-var firstPOS = function(parts, pos) {
+var firstPOS = function (parts, pos) {
 
   var word = '';
 
-  for(var i = 0; i < parts.length; i++) {
+  for (var i = 0; i < parts.length; i++) {
     if (parts[i].pos == pos) {
       word = parts[i].word;
       break;
@@ -160,7 +159,7 @@ var firstPOS = function(parts, pos) {
 };
 
 // split on inner punctuation
-var splitterPunct = function(s1, s2) {
+var splitterPunct = function (s1, s2) {
 
   // logger('splitterPunct');
 
@@ -172,7 +171,7 @@ var splitterPunct = function(s1, s2) {
 
 };
 
-var splitterPos = function(s1,s2) {
+var splitterPos = function (s1, s2) {
 
   // logger('splitterPos');
 
@@ -199,7 +198,7 @@ var splitterPos = function(s1,s2) {
 };
 
 
-var isAlpha = function(text) {
+var isAlpha = function (text) {
   return (typeof text != 'undefined' && /^[\w]+/.test(text));
 };
 
@@ -207,13 +206,13 @@ var isAlpha = function(text) {
 // if the length permits
 // TODO: it does return the last token
 // so, have to fix this. AAAARGH
-var getRandomMiddleToken = function(tokens) {
+var getRandomMiddleToken = function (tokens) {
   // return token if only one
   if (tokens.length == 1) return tokens[0];
   // if only two, return first or last
   if (tokens.length == 2) return (coinflip() ? tokens[0] : tokens[1]);
   // algorithm should work for (length == 3)+
-  return tokens[Math.floor(Math.random()*(tokens.length-2)) + 1];
+  return tokens[Math.floor(Math.random() * (tokens.length - 2)) + 1];
 };
 
 // turn sentences into tokens
@@ -221,7 +220,7 @@ var getRandomMiddleToken = function(tokens) {
 // take first part of first sentence
 // and second part of second sentence
 // TODO: test this baby - where does it split????
-var woodSplitter = function(s1, s2) {
+var woodSplitter = function (s1, s2) {
 
   var t1 = new pos.Lexer().lex(s1);
   var t2 = new pos.Lexer().lex(s2);
@@ -233,29 +232,29 @@ var woodSplitter = function(s1, s2) {
     // and TWO OF THEM ? WTF IDK EVEN
   } else {
 
-  // DONE: we're gonna get AN INFINITE LOOP of some-kind WHEN THERE IS ONLY ONE TOKEN
-  // TODO: unit-tests would be nice
-  // 2015-03-20T17:34:13.823352+00:00 app[worker.1]: m1: The musician in the wolf-trap: meets wolf already trapped, and saves himself by playing music.
-  // 2015-03-20T17:34:13.823346+00:00 app[worker.1]:
-  // 2015-03-20T17:34:13.873865+00:00 app[worker.1]: strategy: woodsplitter
-  // 2015-03-20T17:34:13.823354+00:00 app[worker.1]: m2: Snake-god.
+    // DONE: we're gonna get AN INFINITE LOOP of some-kind WHEN THERE IS ONLY ONE TOKEN
+    // TODO: unit-tests would be nice
+    // 2015-03-20T17:34:13.823352+00:00 app[worker.1]: m1: The musician in the wolf-trap: meets wolf already trapped, and saves himself by playing music.
+    // 2015-03-20T17:34:13.823346+00:00 app[worker.1]:
+    // 2015-03-20T17:34:13.873865+00:00 app[worker.1]: strategy: woodsplitter
+    // 2015-03-20T17:34:13.823354+00:00 app[worker.1]: m2: Snake-god.
 
-  var pos1, pos2;
-  while (!isAlpha(pos1)) pos1 = getRandomMiddleToken(t1);
-  while (!isAlpha(pos2)) pos2 = getRandomMiddleToken(t2);
+    var pos1, pos2;
+    while (!isAlpha(pos1)) pos1 = getRandomMiddleToken(t1);
+    while (!isAlpha(pos2)) pos2 = getRandomMiddleToken(t2);
 
-  var w1 = s1.search(new RegExp('\\b' + pos1 + '\\b'));
-  var w2 = s2.search(new RegExp('\\b' + pos2 + '\\b'));
+    var w1 = s1.search(new RegExp('\\b' + pos1 + '\\b'));
+    var w2 = s2.search(new RegExp('\\b' + pos2 + '\\b'));
 
-  var sent = s1.slice(0, w1).trim() + ' '  + s2.slice(w2).trim();
+    var sent = s1.slice(0, w1).trim() + ' ' + s2.slice(w2).trim();
 
-  return sent;
+    return sent;
   }
 };
 
 // replace all occurences of a given noun in s2 with a noun from s1
 // if s2 is a noun-phrase, swap s1 and s2
-var singleNouner = function(s1, s2) {
+var singleNouner = function (s1, s2) {
 
   var nouns1 = getNounArray(s1);
   var nouns2 = getNounArray(s2);
@@ -290,9 +289,9 @@ var singleNouner = function(s1, s2) {
 
 };
 
-var replacer = function(pos, vector) {
+var replacer = function (pos, vector) {
 
-  var posReplacement = function(s1, s2) {
+  var posReplacement = function (s1, s2) {
 
     // logger('posReplacement');
 
@@ -301,7 +300,7 @@ var replacer = function(pos, vector) {
     var words1 = getPOSarray(s1, pos);
     var words2 = getPOSarray(s2, pos);
 
-    var longest = ( words1.length > words2.length ? words1.length : words2.length);
+    var longest = (words1.length > words2.length ? words1.length : words2.length);
 
     // the shortest list needs to be modded against its length
     for (var i = 0; i < longest; i++) {
@@ -315,7 +314,7 @@ var replacer = function(pos, vector) {
 
   // loop through the second (smaller) array in reverse.
   // uh. wheeee?
-  var replacementPos = function(s1, s2) {
+  var replacementPos = function (s1, s2) {
 
     // logger('replacementPos');
 
@@ -324,7 +323,7 @@ var replacer = function(pos, vector) {
     var words1 = getPOSarray(s1, pos);
     var words2 = getPOSarray(s2, pos);
 
-    var longest = ( words1.length > words2.length ? words1.length : words2.length);
+    var longest = (words1.length > words2.length ? words1.length : words2.length);
 
     // ugh ugh ugh ugh ugh
     var w2i = words2.length;
@@ -346,7 +345,7 @@ var replacer = function(pos, vector) {
 };
 
 
-var hasPOS = function(s1, s2, pos) {
+var hasPOS = function (s1, s2, pos) {
 
   var s1f = false;
   var s2f = false;
@@ -376,14 +375,14 @@ var hasPOS = function(s1, s2, pos) {
 };
 
 
-var hasColons = function(s1, s2) {
+var hasColons = function (s1, s2) {
 
   return (s1.indexOf(':') > -1 && s2.indexOf(':') > -1);
 
 };
 
 // 50-50 chance (unless override)
-var coinflip = function(chance) {
+var coinflip = function (chance) {
 
   if (!chance) chance = 0.5;
 
@@ -393,13 +392,13 @@ var coinflip = function(chance) {
 
 // input: two texts as strings
 // output: a strategy method
-var getStrategy = function(s1, s2) {
+var getStrategy = function (s1, s2) {
 
   // logger('getStrategy');
 
   var hp1 = getPOSarrayFull(s1);
   var hp2 = getPOSarrayFull(s2);
-  var ccs = hasPOS(hp1,hp2, 'CC');
+  var ccs = hasPOS(hp1, hp2, 'CC');
   var colons = hasColons(s1, s2);
   // TODO: trap for all possible variants
   var nns = hasPOS(hp1, hp2, 'NN');
@@ -409,7 +408,7 @@ var getStrategy = function(s1, s2) {
   if (colons && coinflip(0.5)) {
     logger('strategy: splitterPunct');
     strategy = splitterPunct;
-  } else if(ccs && coinflip(0.75)) {
+  } else if (ccs && coinflip(0.75)) {
     logger('strategy: splitterPos');
     strategy = splitterPos;
   } else if (nns && coinflip(0.8)) {
@@ -430,7 +429,7 @@ var getStrategy = function(s1, s2) {
 };
 
 
-var tweeter = function(texts) {
+var tweeter = function (texts) {
 
   if (motifs.length < 2) {
     motifs = JSON.parse(JSON.stringify(motifCore));
@@ -447,11 +446,11 @@ var tweeter = function(texts) {
     var newSentence = strategy(myth1, myth2);
     // capitalize first word
     // I tried inflection's "titleize" but that zapped acronyms like "SSN" and "NSA"
-    newSentence = newSentence.slice(0,1).toUpperCase() + newSentence.slice(1);
+    newSentence = newSentence.slice(0, 1).toUpperCase() + newSentence.slice(1);
 
     console.log(newSentence);
 
-    if(!newSentence) {
+    if (!newSentence) {
       logger('NOTHING NOTHING NOTHING');
     }
   } catch (err) {
@@ -462,30 +461,16 @@ var tweeter = function(texts) {
     tweeter();
   } else {
     if (config.tweet_on) {
-      T.post('statuses/update', { status: newSentence }, function(err, reply) {
-	if (err) {
-	  console.log('error:', err);
-	}
-	else {
-          // nothing on success
-	}
+      const twit = new Twit(config);
+      twit.post('statuses/update', { status: newSentence }, function (err, reply) {
+        if (err) {
+          console.log('error:', err);
+        }
       });
     }
   }
 
 };
-
-
-// Tweets ever n minutes
-// set config.seconds to 60 for a complete minute
-setInterval(function () {
-  try {
-    tweeter();
-  }
-  catch (e) {
-    console.log(e);
-  }
-}, 1000 * config.minutes * config.seconds);
 
 // Tweets once on initialization.
 tweeter();
